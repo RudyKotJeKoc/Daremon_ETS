@@ -79,8 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
     themeSwitcher: document.querySelector('.theme-switcher'),
   };
 
+  ensureVisualizerLoop();
+
   // --- State ---
   let audioContext, analyser;
+  let visualizerDataArray;
+  let visualizerTime = 0;
+  let lastVisualizerTimestamp = 0;
+  let isVisualizerRunning = false;
   const players = [new Audio(), new Audio()];
   let activePlayerIndex = 0;
   players.forEach((p) => {
@@ -334,33 +340,78 @@ document.addEventListener('DOMContentLoaded', () => {
         source.connect(analyser);
       });
       analyser.connect(audioContext.destination);
-      drawVisualizer();
+      ensureVisualizerLoop();
     } catch (e) {
       console.error('AudioContext setup failed:', e);
     }
   }
-  function drawVisualizer() {
+  function ensureVisualizerLoop() {
+    if (isVisualizerRunning) return;
+    isVisualizerRunning = true;
     requestAnimationFrame(drawVisualizer);
-    if (!analyser || !state.isPlaying || !dom.visualizerCanvas) return;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(dataArray);
+  }
+  function drawVisualizer(timestamp = 0) {
+    if (!isVisualizerRunning) return;
+    requestAnimationFrame(drawVisualizer);
+
     const canvas = dom.visualizerCanvas;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const barWidth = (canvas.width / bufferLength) * 2.5;
-    let x = 0;
-    for (let i = 0; i < bufferLength; i++) {
-      const barHeight = dataArray[i] * 1.5;
-      const gradient = ctx.createLinearGradient(0, canvas.height, 0, canvas.height - barHeight);
-      gradient.addColorStop(0, '#008878');
-      gradient.addColorStop(1, '#D4FF3D');
-      ctx.fillStyle = gradient;
-      ctx.fillRect(x, canvas.height - barHeight, barWidth, barHeight);
-      x += barWidth + 1;
+
+    const delta = lastVisualizerTimestamp ? (timestamp - lastVisualizerTimestamp) / 1000 : 0;
+    lastVisualizerTimestamp = timestamp;
+    visualizerTime += delta || 0.016;
+
+    const width = (canvas.width = window.innerWidth);
+    const height = (canvas.height = window.innerHeight);
+    ctx.clearRect(0, 0, width, height);
+
+    const gradientRadius = Math.max(width, height) * (0.35 + 0.05 * Math.sin(visualizerTime * 1.2));
+    const gradient = ctx.createRadialGradient(width * 0.22, height * 0.22, 0, width * 0.22, height * 0.22, gradientRadius);
+    gradient.addColorStop(0, `rgba(0,165,138,${0.18 + 0.12 * Math.abs(Math.sin(visualizerTime))})`);
+    gradient.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = gradient;
+    ctx.fillRect(0, 0, width, height);
+
+    const bars = 64;
+    const barWidth = width / bars;
+    const barBaseline = height - 24;
+    const barHeights = [];
+
+    if (analyser && state.isPlaying) {
+      const bufferLength = analyser.frequencyBinCount;
+      if (!visualizerDataArray || visualizerDataArray.length !== bufferLength) {
+        visualizerDataArray = new Uint8Array(bufferLength);
+      }
+      analyser.getByteFrequencyData(visualizerDataArray);
+      const step = Math.max(1, Math.floor(bufferLength / bars));
+      for (let i = 0; i < bars; i++) {
+        let sum = 0;
+        for (let j = 0; j < step; j++) {
+          const index = i * step + j;
+          sum += visualizerDataArray[index] || 0;
+        }
+        const average = sum / step;
+        barHeights.push((average / 255) * height * 0.45);
+      }
+    } else {
+      for (let i = 0; i < bars; i++) {
+        const phase = visualizerTime * 2 + i * 0.25;
+        const amplitude = (Math.sin(phase) + 1) * 0.5;
+        barHeights.push(amplitude * height * 0.18);
+      }
+    }
+
+    for (let i = 0; i < bars; i++) {
+      const barHeight = barHeights[i];
+      const x = i * barWidth;
+      const y = Math.max(barBaseline - barHeight, 0);
+      const barGradient = ctx.createLinearGradient(x, barBaseline, x, y);
+      barGradient.addColorStop(0, 'rgba(0,136,120,0.45)');
+      barGradient.addColorStop(1, 'rgba(212,255,61,0.9)');
+      ctx.fillStyle = barGradient;
+      ctx.fillRect(x, y, barWidth * 0.6, barHeight);
     }
   }
 

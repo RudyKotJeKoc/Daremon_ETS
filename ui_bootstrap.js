@@ -1,7 +1,7 @@
 /* DAREMON Radio ETS - UI Bootstrap & Visualizer
  * Ensures main player UI renders, headings are visible, controls show,
  * sticky player is present, overlays hidden by default, and a full-screen
- * visualizer canvas animates in the background (audio-independent).
+ * visualizer canvas is ready for the main renderer.
  */
 
 function setTextById(id, text) {
@@ -25,47 +25,6 @@ function hide(selectorOrEl) {
   const el = typeof selectorOrEl === 'string' ? document.querySelector(selectorOrEl) : selectorOrEl;
   if (!el) return;
   el.classList.add('hidden');
-}
-
-function startVisualizer() {
-  const canvas = document.getElementById('visualizer-canvas');
-  if (!canvas) return;
-  const ctx = canvas.getContext('2d');
-  function resize() {
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-  }
-  window.addEventListener('resize', resize);
-  resize();
-
-  let t = 0;
-  function draw() {
-    t += 0.016; // ~60fps
-    const w = canvas.width, h = canvas.height;
-    ctx.clearRect(0, 0, w, h);
-
-    // Pulsing radial gradient
-    const r1 = Math.max(w, h) * (0.35 + 0.05 * Math.sin(t * 1.2));
-    const grad1 = ctx.createRadialGradient(w * 0.22, h * 0.22, 0, w * 0.22, h * 0.22, r1);
-    grad1.addColorStop(0, `rgba(0,165,138,${0.18 + 0.12 * Math.abs(Math.sin(t))})`);
-    grad1.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = grad1;
-    ctx.fillRect(0, 0, w, h);
-
-    // Bars visualizer (audio-independent sine anim)
-    const bars = 64;
-    const barW = w / bars;
-    for (let i = 0; i < bars; i++) {
-      const phase = t * 2 + i * 0.25;
-      const amp = (Math.sin(phase) + 1) * 0.5; // 0..1
-      const barH = amp * h * 0.18;
-      ctx.fillStyle = 'rgba(0,136,120,0.38)';
-      ctx.fillRect(i * barW, h - barH - 24, barW * 0.6, barH);
-    }
-
-    requestAnimationFrame(draw);
-  }
-  draw();
 }
 
 function bootstrapUI() {
@@ -149,8 +108,6 @@ function bootstrapUI() {
     });
   }
 
-  // Start background visualizer animation
-  startVisualizer();
 }
 
 document.addEventListener('DOMContentLoaded', bootstrapUI);
