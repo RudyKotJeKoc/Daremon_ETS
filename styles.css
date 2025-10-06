@@ -81,6 +81,27 @@ body {
     pointer-events: none;
 }
 
+#daremon-logo {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: clamp(180px, 22vw, 320px);
+    aspect-ratio: 1;
+    pointer-events: none;
+}
+
+#daremon-logo svg,
+#daremon-logo img {
+    width: 100%;
+    height: auto;
+    filter: drop-shadow(0 0 12px rgba(0, 165, 138, 0.45));
+}
+
 /* Animations */
 @keyframes neon-flicker {
     0%, 19%, 21%, 23%, 25%, 54%, 56%, 100% {
@@ -112,6 +133,8 @@ body {
 
 /* Layout */
 #app-container {
+    position: relative;
+    z-index: 2;
     width: 100%;
     max-width: 1200px;
     display: flex;
