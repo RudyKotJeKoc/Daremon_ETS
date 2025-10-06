@@ -94,6 +94,14 @@ document.addEventListener('DOMContentLoaded', () => {
     p.preload = 'auto';
   });
 
+  const visualizerSettings = {
+    innerRadius: 140,
+    particleBaseSize: 3,
+    particleMaxSize: 18,
+    backgroundFade: 0.08,
+    smoothing: 0.7,
+  };
+
   let state = {
     playlist: [],
     config: {},
@@ -335,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
       audioContext = new (window.AudioContext || window.webkitAudioContext)();
       analyser = audioContext.createAnalyser();
       analyser.fftSize = 256;
+      analyser.smoothingTimeConstant = visualizerSettings.smoothing;
       players.forEach((player) => {
         const source = audioContext.createMediaElementSource(player);
         source.connect(analyser);
@@ -358,61 +367,59 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
 
-    const delta = lastVisualizerTimestamp ? (timestamp - lastVisualizerTimestamp) / 1000 : 0;
-    lastVisualizerTimestamp = timestamp;
-    visualizerTime += delta || 0.016;
+    const centerX = canvas.width / 2;
+    const centerY = canvas.height / 2;
+    const maxRadius = Math.min(centerX, centerY);
+    const { innerRadius, particleBaseSize, particleMaxSize, backgroundFade } = visualizerSettings;
 
-    const width = (canvas.width = window.innerWidth);
-    const height = (canvas.height = window.innerHeight);
-    ctx.clearRect(0, 0, width, height);
-
-    const gradientRadius = Math.max(width, height) * (0.35 + 0.05 * Math.sin(visualizerTime * 1.2));
-    const gradient = ctx.createRadialGradient(width * 0.22, height * 0.22, 0, width * 0.22, height * 0.22, gradientRadius);
-    gradient.addColorStop(0, `rgba(0,165,138,${0.18 + 0.12 * Math.abs(Math.sin(visualizerTime))})`);
-    gradient.addColorStop(1, 'rgba(0,0,0,0)');
-    ctx.fillStyle = gradient;
-    ctx.fillRect(0, 0, width, height);
-
-    const bars = 64;
-    const barWidth = width / bars;
-    const barBaseline = height - 24;
-    const barHeights = [];
-
-    if (analyser && state.isPlaying) {
-      const bufferLength = analyser.frequencyBinCount;
-      if (!visualizerDataArray || visualizerDataArray.length !== bufferLength) {
-        visualizerDataArray = new Uint8Array(bufferLength);
-      }
-      analyser.getByteFrequencyData(visualizerDataArray);
-      const step = Math.max(1, Math.floor(bufferLength / bars));
-      for (let i = 0; i < bars; i++) {
-        let sum = 0;
-        for (let j = 0; j < step; j++) {
-          const index = i * step + j;
-          sum += visualizerDataArray[index] || 0;
-        }
-        const average = sum / step;
-        barHeights.push((average / 255) * height * 0.45);
-      }
-    } else {
-      for (let i = 0; i < bars; i++) {
-        const phase = visualizerTime * 2 + i * 0.25;
-        const amplitude = (Math.sin(phase) + 1) * 0.5;
-        barHeights.push(amplitude * height * 0.18);
-      }
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    if (backgroundFade > 0) {
+      ctx.save();
+      ctx.globalCompositeOperation = 'source-over';
+      ctx.fillStyle = `rgba(0, 0, 0, ${backgroundFade})`;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.restore();
     }
 
-    for (let i = 0; i < bars; i++) {
-      const barHeight = barHeights[i];
-      const x = i * barWidth;
-      const y = Math.max(barBaseline - barHeight, 0);
-      const barGradient = ctx.createLinearGradient(x, barBaseline, x, y);
-      barGradient.addColorStop(0, 'rgba(0,136,120,0.45)');
-      barGradient.addColorStop(1, 'rgba(212,255,61,0.9)');
-      ctx.fillStyle = barGradient;
-      ctx.fillRect(x, y, barWidth * 0.6, barHeight);
+    ctx.save();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < bufferLength; i++) {
+      const value = dataArray[i] / 255;
+      if (value <= 0) continue;
+      const easedValue = Math.pow(value, 1.4);
+      const angle = (i / bufferLength) * Math.PI * 2;
+      const radius = innerRadius + easedValue * (maxRadius - innerRadius);
+      const particleRadius = particleBaseSize + easedValue * (particleMaxSize - particleBaseSize);
+      const particleX = centerX + Math.cos(angle) * radius;
+      const particleY = centerY + Math.sin(angle) * radius;
+
+      const gradient = ctx.createRadialGradient(
+        particleX,
+        particleY,
+        particleRadius * 0.2,
+        particleX,
+        particleY,
+        particleRadius * 1.6
+      );
+      gradient.addColorStop(0, '#D4FF3D');
+      gradient.addColorStop(0.5, '#00C4A0');
+      gradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+
+      ctx.beginPath();
+      ctx.fillStyle = gradient;
+      ctx.arc(particleX, particleY, particleRadius, 0, Math.PI * 2);
+      ctx.fill();
     }
+    ctx.restore();
+
+    ctx.globalCompositeOperation = 'destination-out';
+    ctx.beginPath();
+    ctx.arc(centerX, centerY, innerRadius * 0.9, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   // --- Selection helpers ---
