@@ -118,37 +118,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   let problematicTracks = new Set();
 
-  // --- Loader overlay control ---
-  let loaderSuppressed = false;
-  function showLoaderOverlay() {
-    const o = document.getElementById('loaderOverlay');
-    if (!o) return;
-    const closed = sessionStorage.getItem('loaderClosed') === 'true';
-    if (closed || loaderSuppressed) return;
-    o.classList.remove('hidden');
-    o.setAttribute('aria-hidden', 'false');
-  }
-  function hideLoaderOverlay() {
-    const o = document.getElementById('loaderOverlay');
-    if (!o) return;
-    o.classList.add('hidden');
-    o.setAttribute('aria-hidden', 'true');
-  }
+  // --- UI control ---
   function enableUI() {
-    // Keep UI interactive; do not use ui-disabled
-    hideLoaderOverlay();
+    // Keep UI interactive
   }
-
-  // Close button ensures overlay hides and persists user's choice for the session
-  const closeBtn = document.getElementById('loaderCloseBtn');
-  closeBtn?.addEventListener('click', () => {
-    hideLoaderOverlay();
-    try {
-      sessionStorage.setItem('loaderClosed', 'true');
-    } catch (err) {
-      // ignore storage errors
-    }
-  });
 
   // --- i18n ---
   async function i18n_init() {
@@ -193,7 +166,6 @@ document.addEventListener('DOMContentLoaded', () => {
         noRatingsYet: 'Nog geen beoordelingen - wees de eerste!',
         yourRating: 'Jouw beoordeling',
         topTracksTitle: '🔥 Top Tracks',
-        closeLoader: 'Sluit',
       };
       i18n_apply();
     }
@@ -592,8 +564,6 @@ document.addEventListener('DOMContentLoaded', () => {
         .then(() => {
           state.currentTrack = track;
           state.isPlaying = true;
-          hideLoaderOverlay(); // ensure overlay hides on play
-          loaderSuppressed = false;
           updateUIForNewTrack();
           updateHistory();
           preloadNextTrack();
@@ -638,8 +608,6 @@ document.addEventListener('DOMContentLoaded', () => {
       code = err?.code || '';
     } catch {}
     console.error('Audio playback error:', { name, code, src, trackId: tr?.id, err });
-
-    showLoaderOverlay();
 
     if (tr?.id) {
       markTrackAsProblematic(tr.id, name || code || 'Unknown audio error');
@@ -1284,11 +1252,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       player.addEventListener('ended', () => {
         if (player === players[activePlayerIndex]) {
-          loaderSuppressed = true;
           enableUI();
-          setTimeout(() => {
-            loaderSuppressed = false;
-          }, 5000);
           playNextTrack();
         }
       });
@@ -1300,27 +1264,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       player.addEventListener('play', () => {
         if (player === players[activePlayerIndex]) {
-          hideLoaderOverlay();
-          loaderSuppressed = false;
           updatePlayPauseButtons();
         }
       });
-      player.addEventListener('canplay', () => {
-        hideLoaderOverlay();
-        loaderSuppressed = false;
-      });
-      player.addEventListener('playing', () => {
-        hideLoaderOverlay();
-        loaderSuppressed = false;
-      });
-      player.addEventListener('waiting', () => {
-        if (!loaderSuppressed) showLoaderOverlay();
-      });
-      player.addEventListener('stalled', () => {
-        if (!loaderSuppressed) showLoaderOverlay();
-      });
       player.addEventListener('error', () => {
-        if (!loaderSuppressed) showLoaderOverlay();
         handleAudioError(new Error('Audio error'));
       });
     });
@@ -1455,7 +1402,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // --- Service Worker ---
-  if (false if ('serviceWorker' in navigator)if ('serviceWorker' in navigator) 'serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator) {
     window.addEventListener('load', () => {
       navigator.serviceWorker
         .register('./sw.js')
