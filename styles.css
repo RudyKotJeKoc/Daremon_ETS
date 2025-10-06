@@ -331,50 +331,6 @@ header p {
   transition: all 0.3s ease;
 }
 
-/* === LOADER OVERLAY (Non-blocking) === */
-#loaderOverlay {
-  position: fixed;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  background: rgba(0,0,0,.6);
-  z-index: 9999;
-  opacity: 1;
-  visibility: visible;
-  pointer-events: none; /* Non-blocking: allow clicks to pass through */
-}
-#loadingLogo {
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-  border: 6px solid rgba(255,255,255,0.15);
-  border-top-color: var(--primary-accent);
-  animation: loader-spin 1s linear infinite;
-  box-shadow: 0 0 20px rgba(0,0,0,0.35);
-}
-@keyframes loader-spin {
-  to { transform: rotate(360deg); }
-}
-#loaderCloseBtn {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  font-size: 1.5rem;
-  background: transparent;
-  border: 2px solid rgba(255,255,255,0.25);
-  color: #fff;
-  line-height: 1;
-  border-radius: 8px;
-  width: 40px;
-  height: 40px;
-  cursor: pointer;
-  pointer-events: auto; /* Keep the "×" clickable even when overlay is non-intercepting */
-}
-#loaderCloseBtn:hover {
-  background: rgba(255,255,255,0.1);
-  border-color: var(--primary-accent);
-}
-
 /* Responsive */
 @media (max-width: 900px) {
     body { padding: 10px; padding-bottom: 80px; }
