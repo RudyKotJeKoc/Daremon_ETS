@@ -79,8 +79,14 @@ document.addEventListener('DOMContentLoaded', () => {
     themeSwitcher: document.querySelector('.theme-switcher'),
   };
 
+  ensureVisualizerLoop();
+
   // --- State ---
   let audioContext, analyser;
+  let visualizerDataArray;
+  let visualizerTime = 0;
+  let lastVisualizerTimestamp = 0;
+  let isVisualizerRunning = false;
   const players = [new Audio(), new Audio()];
   let activePlayerIndex = 0;
   players.forEach((p) => {
@@ -343,18 +349,22 @@ document.addEventListener('DOMContentLoaded', () => {
         source.connect(analyser);
       });
       analyser.connect(audioContext.destination);
-      drawVisualizer();
+      ensureVisualizerLoop();
     } catch (e) {
       console.error('AudioContext setup failed:', e);
     }
   }
-  function drawVisualizer() {
+  function ensureVisualizerLoop() {
+    if (isVisualizerRunning) return;
+    isVisualizerRunning = true;
     requestAnimationFrame(drawVisualizer);
-    if (!analyser || !state.isPlaying || !dom.visualizerCanvas) return;
-    const bufferLength = analyser.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
-    analyser.getByteFrequencyData(dataArray);
+  }
+  function drawVisualizer(timestamp = 0) {
+    if (!isVisualizerRunning) return;
+    requestAnimationFrame(drawVisualizer);
+
     const canvas = dom.visualizerCanvas;
+    if (!canvas) return;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
     canvas.width = window.innerWidth;
